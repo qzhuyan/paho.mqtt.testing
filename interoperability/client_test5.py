@@ -938,11 +938,13 @@ class Test(unittest.TestCase):
       receiver.receive(testcallback)
       self.waitfor(testcallback.subscribeds, 1, 3)
 
+      logging.debug("shoot pubs")
       pubs = 0
       for i in range(1, clientReceiveMaximum + 2):
         testclient.publish(topics[0], "message %d" % i, 1)
         pubs += 1
 
+      logging.debug("recv pubs")
       # get two publishes
       acks = 0
       while True:
@@ -954,7 +956,7 @@ class Test(unittest.TestCase):
         del receiver.outMsgs[response1.packetIdentifier]
       self.assertEqual(response1.fh.PacketType, MQTTV5.PacketTypes.PUBLISH)
       self.assertEqual(response1.fh.QoS, 1, response1.fh.QoS)
-
+      logging.debug(f"count ack for recv pubs {acks}")
       while True:
         response2 = MQTTV5.unpackPacket(MQTTV5.getPacket(testclient.sock))
         if response2.fh.PacketType == MQTTV5.PacketTypes.PUBLISH:
@@ -965,12 +967,14 @@ class Test(unittest.TestCase):
       self.assertEqual(response2.fh.PacketType, MQTTV5.PacketTypes.PUBLISH)
       self.assertEqual(response2.fh.QoS, 1, response1.fh.QoS)
 
+      logging.debug(f"count ack for recv pubs {acks}")
       while acks < pubs:
         ack = MQTTV5.unpackPacket(MQTTV5.getPacket(testclient.sock))
         self.assertEqual(ack.fh.PacketType, MQTTV5.PacketTypes.PUBACK)
         acks += 1
         del receiver.outMsgs[ack.packetIdentifier]
 
+      logging.debug(f"count ack for recv pubs {acks}")
       with self.assertRaises(socket.timeout):
         # this should time out because we haven't acknowledged the first one
         response3 = MQTTV5.unpackPacket(MQTTV5.getPacket(testclient.sock))
@@ -979,20 +983,23 @@ class Test(unittest.TestCase):
       puback = MQTTV5.Pubacks()
       puback.packetIdentifier = response1.packetIdentifier
       testclient.sock.send(puback.pack())
-
+      logging.debug("acked first one")
       # now get the next packet
       response3 = MQTTV5.unpackPacket(MQTTV5.getPacket(testclient.sock))
       self.assertEqual(response3.fh.PacketType, MQTTV5.PacketTypes.PUBLISH)
-      self.assertEqual(response3.fh.QoS, 1, response1.fh.QoS)
+      self.assertEqual(response3.fh.QoS, 1, response3.fh.QoS)
 
       # ack the second one
       puback.packetIdentifier = response2.packetIdentifier
       testclient.sock.send(puback.pack())
+      logging.debug("acked 2nd one")
 
       # ack the third one
       puback.packetIdentifier = response3.packetIdentifier
       testclient.sock.send(puback.pack())
+      logging.debug("acked 3rd one")
 
+      logging.debug("now disconnect...")
       testclient.disconnect()
 
     def test_flow_control2(self):
@@ -1221,7 +1228,7 @@ if __name__ == "__main__":
       iterations = int(a)
 
   root = logging.getLogger()
-  root.setLevel(logging.ERROR)
+  root.setLevel(logging.DEBUG)
 
   logging.info("hostname %s port %d", host, port)
   print("argv", sys.argv)
