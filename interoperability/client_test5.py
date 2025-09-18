@@ -1025,10 +1025,17 @@ class Test(unittest.TestCase):
         testclient.publish(topics[0], "message %d" % i, qos)
         pubs += 1
 
-      # should get disconnected...
-      while testcallback.disconnects == []:
+      # should get disconnected... 
+
+      total = 0
+      limit = 5  # 5 second timeout
+      while testcallback.disconnects == [] and total < limit:
         receiver.receive(testcallback)
-      self.waitfor(testcallback.disconnects, 1, 1)
+        time.sleep(0.1)
+        total += 0.1
+      
+      # Ensure we actually got disconnected within the timeout
+      self.assertGreater(len(testcallback.disconnects), 0, "No disconnect received within timeout")
       self.assertEqual(len(testcallback.disconnects), 1, len(testcallback.disconnects))
       self.assertEqual(testcallback.disconnects[0]["reasonCode"].value, 147,
                        testcallback.disconnects[0]["reasonCode"].value)
